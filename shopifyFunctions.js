@@ -34,10 +34,9 @@ async function getProductsByVendor(cursor, vendor) {
                     products(first: 100, ${cursor ? `after: "${cursor}",` : ''} query: "vendor:${vendor} status:active") {
                         pageInfo { hasNextPage endCursor }
                         nodes {
-                            id
                             handle
                             title
-                            variants(first: 250) {
+                            variants(first: 150) {
                                 nodes {
                                     title
                                     sku

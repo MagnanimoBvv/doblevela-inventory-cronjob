@@ -25,43 +25,43 @@ async function getDobleVelaProduct(code) {
 }
 
 async function updateProducts() {
-    const shopifyProducts = await paginateProductsByVendor('Doble Vela');
-
     const locationId = await getLocationId();
+    const shopifyProducts = await paginateProductsByVendor('Doble Vela');
     for (const shopifyProduct of shopifyProducts) {
         // if (model !== 'A2558') continue; // If para pruebas con un producto específico
         try {
             const handle = shopifyProduct.handle.replace('dv-', '').replace(/-/g, ' ').toUpperCase();
             const responseProduct = await getDobleVelaProduct(handle);
-            if (responseProduct.intCodigo !== 0) {
-                continue;
-            }
-            const activeVariants = responseProduct.Resultado;
+            if (responseProduct.intCodigo !== 0) continue;
 
             const shopifyVariants = shopifyProduct.variants.nodes;
-            for (const activeVariant of activeVariants) {
-                const variant = shopifyVariants.find(v => v.sku === activeVariant.CLAVE);
-                const variantInventory = warehouses.reduce((acum, warehouse) => acum + activeVariant[warehouse], 0);
-                console.log(`Variante encontrada: ${shopifyProduct.title} ${variant.title}, Inventario: Prev ${variant.inventoryQuantity} Now ${variantInventory}`);
+            const activeVariants = responseProduct.Resultado;
+            const activeVariantBySKU = new Map(activeVariants.map(v => [v.CLAVE, v]));
 
-                if (variant.inventoryQuantity !== variantInventory) {
-                    const variantToUpdate = {
-                        quantities: {
-                            changeFromQuantity: null,
-                            inventoryItemId: variant.inventoryItem.id,
-                            locationId,
-                            quantity: variantInventory,
-                        },
-                        name: "available",
-                        reason: "correction",
-                    };
-                    const response = await updateInventory(variantToUpdate);
-                    console.log('Inventario actualizado:', response.changes);
-                }
+            for (const variant of shopifyVariants) {
+                const activeVariant = activeVariantBySKU.get(variant.sku);
+                const targetInventory = activeVariant ? warehouses.reduce((acum, warehouse) => acum + activeVariant[warehouse], 0) : 0;
+                const label = activeVariant ? 'Variante existente' : 'Variante faltante';
+                console.log(`${label}: ${shopifyProduct.title} ${variant.title}, Prev ${variant.inventoryQuantity} Now ${targetInventory}`);
+
+                if (variant.inventoryQuantity === targetInventory) continue;
+
+                const variantToUpdate = {
+                    quantities: {
+                        changeFromQuantity: null,
+                        inventoryItemId: variant.inventoryItem.id,
+                        locationId,
+                        quantity: targetInventory,
+                    },
+                    name: "available",
+                    reason: "correction",
+                };
+                const response = await updateInventory(variantToUpdate);
+                console.log('Inventario actualizado:', response.changes);
             }
             // break;
         } catch (error) {
-            console.error(`Error actualizando el producto ${shopifyProduct.title}:`, error);
+            console.error(`Error actualizando ${shopifyProduct.title}:`, error);
         }
     }
 }
