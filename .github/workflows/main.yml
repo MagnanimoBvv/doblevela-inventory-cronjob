@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        store: [GI, HHG]
+        store: [GI]
 
     env:
       GRAPHQL_URL: ${{ secrets[ format('GRAPHQL_URL_{0}', matrix.store) ] }}
